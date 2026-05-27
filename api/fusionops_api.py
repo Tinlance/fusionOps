@@ -51,6 +51,25 @@ app = FastAPI(
     },
 )
 
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import HTMLResponse
+import os as _os
+
+_dashboard = _os.path.join(_os.path.dirname(_os.path.dirname(__file__)), "dashboard")
+
+@app.get("/dashboard", response_class=HTMLResponse, include_in_schema=False)
+@app.get("/dashboard/", response_class=HTMLResponse, include_in_schema=False)
+def serve_dashboard():
+    """Serve the FusionOps live threat dashboard."""
+    idx = _os.path.join(_dashboard, "index.html")
+    if not _os.path.exists(idx):
+        return HTMLResponse("<h1>Dashboard not found</h1><p>Add dashboard/index.html to the repo.</p>", status_code=404)
+    with open(idx, "r") as f:
+        return HTMLResponse(content=f.read())
+
+if _os.path.exists(_dashboard):
+    app.mount("/dashboard/static", StaticFiles(directory=_dashboard), name="dashboard-static")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],        # Lock down to dashboard domain in production
