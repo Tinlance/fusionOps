@@ -33,6 +33,7 @@ from config.settings import settings
 
 # ── Triage agent (local to FusionOps) ────────────────────────────────────────
 from agents.triage_agent import run_triage
+from agents.remediation_agent import run_remediation
 
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -101,9 +102,10 @@ class DetectionResult(BaseModel):
     severity: str
 
 class FullAnalysisResult(BaseModel):
-    """Combined detection + triage result — the main FusionOps output."""
+    """Combined detection + triage + remediation — the full FusionOps pipeline."""
     detection: DetectionResult
     triage: dict
+    remediation: dict
 
 # ── ThreatFade HTTP client ─────────────────────────────────────────────────────
 
@@ -222,7 +224,10 @@ async def detect_from_json(payload: SignalPayload):
     # Step 2: Run triage agent
     triage = run_triage(raw)
 
-    result = {"detection": raw, "triage": triage}
+    # Step 3: Run remediation agent
+    remediation = run_remediation(triage, raw)
+
+    result = {"detection": raw, "triage": triage, "remediation": remediation}
     _log_event(result)
     return result
 
@@ -245,7 +250,10 @@ async def detect_scenario(request: ScenarioRequest):
     # Step 2: Run triage agent
     triage = run_triage(raw)
 
-    result = {"detection": raw, "triage": triage}
+    # Step 3: Run remediation agent
+    remediation = run_remediation(triage, raw)
+
+    result = {"detection": raw, "triage": triage, "remediation": remediation}
     _log_event(result)
     return result
 
