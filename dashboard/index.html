@@ -1,0 +1,1052 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FusionOps — Live Threat Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:wght@300;400;600;700&family=Barlow+Condensed:wght@700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --teal:       #00e5c8;
+    --teal-dim:   #00b8a0;
+    --teal-glow:  rgba(0,229,200,0.15);
+    --pink:       #ff4d6d;
+    --pink-dim:   #cc3355;
+    --pink-glow:  rgba(255,77,109,0.15);
+    --amber:      #ffb703;
+    --amber-glow: rgba(255,183,3,0.15);
+    --bg:         #060a0f;
+    --bg2:        #0c1520;
+    --bg3:        #111d2a;
+    --card:       #0d1a26;
+    --border:     #1a2f42;
+    --border2:    #243a50;
+    --muted:      #4a6278;
+    --text:       #c8dce8;
+    --white:      #e8f4f8;
+    --mono:       'Share Tech Mono', monospace;
+    --sans:       'Barlow', sans-serif;
+    --cond:       'Barlow Condensed', sans-serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Scanline overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.03) 2px,
+      rgba(0,0,0,0.03) 4px
+    );
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  /* Grid background */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,229,200,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,200,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── HEADER ── */
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(6,10,15,0.95);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .logo-mark {
+    width: 32px;
+    height: 32px;
+    border: 1.5px solid var(--teal);
+    border-radius: 4px;
+    display: grid;
+    place-items: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .logo-mark::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--teal-glow);
+  }
+
+  .logo-mark svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .logo-text {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+
+  .logo-name {
+    font-family: var(--cond);
+    font-weight: 900;
+    font-size: 18px;
+    color: var(--white);
+    letter-spacing: 2px;
+    line-height: 1;
+  }
+
+  .logo-sub {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--teal);
+    letter-spacing: 3px;
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .live-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--teal);
+    letter-spacing: 2px;
+  }
+
+  .live-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--teal);
+    animation: pulse 1.4s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(0,229,200,0.6); }
+    50% { opacity: 0.6; box-shadow: 0 0 0 6px rgba(0,229,200,0); }
+  }
+
+  .demo-btn {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: var(--bg);
+    background: var(--teal);
+    border: none;
+    padding: 7px 16px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+  }
+
+  .demo-btn:hover {
+    background: var(--white);
+    box-shadow: 0 0 20px var(--teal-glow);
+  }
+
+  .demo-btn:active { transform: scale(0.97); }
+
+  .demo-btn.loading {
+    background: var(--border2);
+    color: var(--muted);
+    cursor: not-allowed;
+  }
+
+  /* ── MAIN LAYOUT ── */
+  main {
+    position: relative;
+    z-index: 1;
+    padding: 24px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  /* ── STAT STRIP ── */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
+  .stat-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 16px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.3s;
+  }
+
+  .stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+  }
+
+  .stat-card.teal::before { background: var(--teal); }
+  .stat-card.pink::before { background: var(--pink); }
+  .stat-card.amber::before { background: var(--amber); }
+
+  .stat-label {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--muted);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  .stat-value {
+    font-family: var(--cond);
+    font-size: 32px;
+    font-weight: 900;
+    line-height: 1;
+    color: var(--white);
+  }
+
+  .stat-value.teal { color: var(--teal); }
+  .stat-value.pink { color: var(--pink); }
+  .stat-value.amber { color: var(--amber); }
+
+  .stat-sub {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+
+  /* ── TWO COLUMN LAYOUT ── */
+  .grid-main {
+    display: grid;
+    grid-template-columns: 1fr 380px;
+    gap: 16px;
+    align-items: start;
+  }
+
+  /* ── PANEL ── */
+  .panel {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+
+  .panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg3);
+  }
+
+  .panel-title {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--teal);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+  }
+
+  .panel-count {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+  }
+
+  /* ── EVENT FEED ── */
+  .event-list {
+    max-height: 520px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border2) transparent;
+  }
+
+  .event-list::-webkit-scrollbar { width: 4px; }
+  .event-list::-webkit-scrollbar-track { background: transparent; }
+  .event-list::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  .event-item {
+    display: grid;
+    grid-template-columns: 6px 1fr auto;
+    gap: 14px;
+    align-items: center;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.2s;
+    animation: slideIn 0.35s ease-out;
+    cursor: pointer;
+  }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateX(-8px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+
+  .event-item:hover { background: rgba(0,229,200,0.03); }
+  .event-item:last-child { border-bottom: none; }
+
+  .event-bar {
+    width: 6px;
+    height: 40px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+
+  .event-bar.CRITICAL { background: var(--pink); box-shadow: 0 0 8px var(--pink-glow); }
+  .event-bar.HIGH     { background: var(--amber); box-shadow: 0 0 8px var(--amber-glow); }
+  .event-bar.MEDIUM   { background: #4da6ff; }
+  .event-bar.LOW      { background: var(--teal); }
+  .event-bar.INFO     { background: var(--muted); }
+
+  .event-body { min-width: 0; }
+
+  .event-top {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+    flex-wrap: wrap;
+  }
+
+  .event-source {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--white);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .badge {
+    font-family: var(--mono);
+    font-size: 8px;
+    letter-spacing: 1.5px;
+    padding: 2px 6px;
+    border-radius: 2px;
+    text-transform: uppercase;
+    flex-shrink: 0;
+  }
+
+  .badge.CRITICAL { background: var(--pink-glow); color: var(--pink); border: 1px solid var(--pink-dim); }
+  .badge.HIGH     { background: var(--amber-glow); color: var(--amber); border: 1px solid #cc8800; }
+  .badge.MEDIUM   { background: rgba(77,166,255,0.1); color: #4da6ff; border: 1px solid #1a5080; }
+  .badge.LOW      { background: var(--teal-glow); color: var(--teal); border: 1px solid var(--teal-dim); }
+  .badge.INFO     { background: rgba(74,98,120,0.2); color: var(--muted); border: 1px solid var(--border2); }
+
+  .event-meta {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .event-meta span { white-space: nowrap; }
+
+  .event-meta .val { color: var(--text); }
+
+  .event-time {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--muted);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  /* Empty state */
+  .empty-state {
+    padding: 60px 24px;
+    text-align: center;
+  }
+
+  .empty-state .icon {
+    font-size: 40px;
+    margin-bottom: 16px;
+    opacity: 0.3;
+  }
+
+  .empty-state p {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 2px;
+  }
+
+  /* ── RIGHT COLUMN ── */
+  .right-col {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  /* ── DETAIL PANEL ── */
+  .detail-content {
+    padding: 18px;
+  }
+
+  .detail-empty {
+    padding: 40px 18px;
+    text-align: center;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 2px;
+  }
+
+  .detail-section {
+    margin-bottom: 18px;
+  }
+
+  .detail-section-title {
+    font-family: var(--mono);
+    font-size: 8px;
+    color: var(--muted);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .detail-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+
+  .detail-key {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    flex-shrink: 0;
+  }
+
+  .detail-val {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text);
+    text-align: right;
+    word-break: break-all;
+  }
+
+  .detail-val.teal { color: var(--teal); }
+  .detail-val.pink { color: var(--pink); }
+  .detail-val.amber { color: var(--amber); }
+
+  /* ── ACTION LIST ── */
+  .action-item {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .action-item:last-child { border-bottom: none; }
+
+  .action-status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-top: 3px;
+  }
+
+  .action-status-dot.EXECUTED { background: var(--teal); box-shadow: 0 0 6px var(--teal-glow); }
+  .action-status-dot.SUGGESTED { background: var(--amber); }
+  .action-status-dot.SKIPPED { background: var(--muted); }
+
+  .action-body { flex: 1; min-width: 0; }
+
+  .action-title {
+    font-family: var(--sans);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--white);
+    margin-bottom: 3px;
+  }
+
+  .action-desc {
+    font-size: 10px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  .action-cmd {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--teal);
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    padding: 4px 8px;
+    border-radius: 3px;
+    margin-top: 5px;
+    word-break: break-all;
+  }
+
+  /* ── AUDIT LOG ── */
+  .audit-content {
+    padding: 14px 18px;
+    max-height: 180px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border2) transparent;
+  }
+
+  .audit-content::-webkit-scrollbar { width: 3px; }
+  .audit-content::-webkit-scrollbar-thumb { background: var(--border2); }
+
+  .audit-entry {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--muted);
+    line-height: 1.8;
+    padding: 5px 0;
+    border-bottom: 1px solid var(--border);
+    animation: fadeIn 0.3s ease-out;
+    word-break: break-all;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  .audit-entry:last-child { border-bottom: none; }
+  .audit-entry .highlight { color: var(--teal); }
+  .audit-entry .warn { color: var(--pink); }
+
+  /* ── TERMINAL STATUS BAR ── */
+  .status-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    height: 26px;
+    background: var(--teal);
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 24px;
+  }
+
+  .status-item {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--bg);
+    letter-spacing: 1.5px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .status-item b { font-weight: 700; }
+
+  .status-sep {
+    width: 1px;
+    height: 12px;
+    background: rgba(0,0,0,0.2);
+  }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 1100px) {
+    .grid-main { grid-template-columns: 1fr; }
+    .right-col { display: grid; grid-template-columns: 1fr 1fr; }
+    .stats { grid-template-columns: repeat(3, 1fr); }
+  }
+
+  @media (max-width: 700px) {
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    .right-col { grid-template-columns: 1fr; }
+    main { padding: 12px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="logo">
+    <div class="logo-mark">
+      <svg viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M9 1L16 5V13L9 17L2 13V5L9 1Z" stroke="#00e5c8" stroke-width="1.2" fill="none"/>
+        <path d="M9 5L13 7.5V12.5L9 15L5 12.5V7.5L9 5Z" fill="#00e5c8" opacity="0.3"/>
+        <circle cx="9" cy="9" r="1.5" fill="#00e5c8"/>
+      </svg>
+    </div>
+    <div class="logo-text">
+      <div class="logo-name">FUSIONOPS</div>
+      <div class="logo-sub">THREAT CONSOLE · v0.3.0</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="live-badge">
+      <div class="live-dot" id="liveDot"></div>
+      <span id="liveStatus">CONNECTING</span>
+    </div>
+    <button class="demo-btn" id="demoBtn" onclick="runDemo()">▶ RUN DEMO</button>
+  </div>
+</header>
+
+<!-- MAIN -->
+<main>
+
+  <!-- STATS -->
+  <div class="stats">
+    <div class="stat-card teal">
+      <div class="stat-label">Total Events</div>
+      <div class="stat-value teal" id="statTotal">0</div>
+      <div class="stat-sub">since session start</div>
+    </div>
+    <div class="stat-card pink">
+      <div class="stat-label">Detections</div>
+      <div class="stat-value pink" id="statDetections">0</div>
+      <div class="stat-sub">threats found</div>
+    </div>
+    <div class="stat-card amber">
+      <div class="stat-label">Critical</div>
+      <div class="stat-value amber" id="statCritical">0</div>
+      <div class="stat-sub">immediate action</div>
+    </div>
+    <div class="stat-card teal">
+      <div class="stat-label">Auto-Remediated</div>
+      <div class="stat-value teal" id="statAuto">0</div>
+      <div class="stat-sub">no human needed</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Last Scan</div>
+      <div class="stat-value" id="statLastScan" style="font-size:16px;padding-top:6px">—</div>
+      <div class="stat-sub">poll interval: 5s</div>
+    </div>
+  </div>
+
+  <!-- MAIN GRID -->
+  <div class="grid-main">
+
+    <!-- EVENT FEED -->
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">// Live Event Feed</span>
+        <span class="panel-count" id="feedCount">0 events</span>
+      </div>
+      <div class="event-list" id="eventList">
+        <div class="empty-state">
+          <div class="icon">◈</div>
+          <p>AWAITING SIGNAL</p>
+          <p style="margin-top:8px;font-size:9px">Click RUN DEMO to trigger a detection</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT COLUMN -->
+    <div class="right-col">
+
+      <!-- DETAIL PANEL -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">// Event Detail</span>
+        </div>
+        <div id="detailPanel">
+          <div class="detail-empty">SELECT AN EVENT<br>TO VIEW DETAILS</div>
+        </div>
+      </div>
+
+      <!-- AUDIT LOG -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">// Audit Trail</span>
+          <span class="panel-count" id="auditCount">0 entries</span>
+        </div>
+        <div class="audit-content" id="auditLog">
+          <div class="audit-entry" style="opacity:0.4">
+            [SYSTEM] FusionOps v0.3.0 initialized · ThreatFade engine ready
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</main>
+
+<!-- STATUS BAR -->
+<div class="status-bar">
+  <div class="status-item">FUSIONOPS <b>v0.3.0</b></div>
+  <div class="status-sep"></div>
+  <div class="status-item">ENGINE <b>ThreatFade entropy+zscore</b></div>
+  <div class="status-sep"></div>
+  <div class="status-item">VALIDATED <b>Merlin QUIC z=14.76</b></div>
+  <div class="status-sep"></div>
+  <div class="status-item">BY <b>TINLANCE LIMITED</b></div>
+  <div class="status-sep"></div>
+  <div class="status-item" id="clockEl">—</div>
+</div>
+
+<script>
+// ── CONFIG ────────────────────────────────────────────────────────────────────
+// Auto-detect: if this page is served from the same origin as the API, use
+// relative paths. Otherwise point to your FusionOps Codespace URL.
+const API_BASE = window.location.hostname === 'localhost'
+  ? 'http://localhost:8080'
+  : window.location.origin.replace('-8080', '-8080'); // same codespace
+
+const POLL_INTERVAL = 5000;
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+let events = [];
+let selectedEventId = null;
+let stats = { total: 0, detections: 0, critical: 0, auto: 0 };
+let connected = false;
+
+// ── CLOCK ─────────────────────────────────────────────────────────────────────
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clockEl').innerHTML =
+    `UTC <b>${now.toUTCString().slice(17, 25)}</b>`;
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ── POLL API ──────────────────────────────────────────────────────────────────
+async function pollEvents() {
+  try {
+    const res = await fetch(`${API_BASE}/events?limit=50`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+
+    if (!connected) {
+      connected = true;
+      document.getElementById('liveStatus').textContent = 'LIVE';
+      document.getElementById('liveDot').style.background = '#00e5c8';
+    }
+
+    document.getElementById('statLastScan').textContent =
+      new Date().toUTCString().slice(17, 25);
+
+    if (data.events && data.events.length > events.length) {
+      const newEvents = data.events.slice(events.length);
+      newEvents.forEach(e => ingestEvent(e));
+    }
+
+    events = data.events || [];
+    updateStats();
+  } catch (err) {
+    connected = false;
+    document.getElementById('liveStatus').textContent = 'DISCONNECTED';
+    document.getElementById('liveDot').style.background = '#ff4d6d';
+  }
+}
+
+// ── INGEST EVENT ──────────────────────────────────────────────────────────────
+function ingestEvent(event) {
+  const det = event.detection || {};
+  const tri = event.triage || {};
+  const rem = event.remediation || {};
+
+  const priority = tri.priority || det.severity || 'INFO';
+  const source   = det.source || 'unknown';
+  const detected = det.detected;
+  const zscore   = det.z_outlier || 0;
+  const mitre    = det.mitre_ttp || tri.mitre_ttp || '';
+  const action   = tri.recommended_action || '';
+  const eventId  = det.event_id || '';
+  const ts       = det.timestamp || new Date().toISOString();
+
+  // Update stats
+  stats.total++;
+  if (detected) stats.detections++;
+  if (priority === 'CRITICAL') stats.critical++;
+  if (rem.requires_human === false) stats.auto++;
+
+  // Add to feed
+  addEventToFeed({ eventId, priority, source, detected, zscore, mitre, action, ts, raw: event });
+
+  // Add audit entry
+  if (rem.audit_entry) {
+    addAuditEntry(rem.audit_entry, priority);
+  }
+}
+
+// ── RENDER FEED ITEM ──────────────────────────────────────────────────────────
+function addEventToFeed(e) {
+  const list = document.getElementById('eventList');
+
+  // Clear empty state
+  const empty = list.querySelector('.empty-state');
+  if (empty) empty.remove();
+
+  const time = new Date(e.ts).toUTCString().slice(17, 25);
+  const zDisplay = parseFloat(e.zscore).toFixed(2);
+
+  const item = document.createElement('div');
+  item.className = 'event-item';
+  item.dataset.eventId = e.eventId;
+  item.onclick = () => showDetail(e.raw, e.eventId);
+  item.innerHTML = `
+    <div class="event-bar ${e.priority}"></div>
+    <div class="event-body">
+      <div class="event-top">
+        <span class="event-source">${escHtml(e.source)}</span>
+        <span class="badge ${e.priority}">${e.priority}</span>
+        ${e.detected ? `<span class="badge ${e.priority}">DETECTED</span>` : ''}
+      </div>
+      <div class="event-meta">
+        <span>Z <span class="val">${zDisplay}</span></span>
+        <span>ACTION <span class="val">${e.action.replace(/_/g,' ')}</span></span>
+        ${e.mitre ? `<span>MITRE <span class="val">${escHtml(e.mitre.split('–')[0].trim())}</span></span>` : ''}
+      </div>
+    </div>
+    <div class="event-time">${time}</div>
+  `;
+
+  list.insertBefore(item, list.firstChild);
+
+  // Keep max 50 items in DOM
+  const items = list.querySelectorAll('.event-item');
+  if (items.length > 50) items[items.length - 1].remove();
+
+  document.getElementById('feedCount').textContent = `${stats.total} event${stats.total !== 1 ? 's' : ''}`;
+}
+
+// ── DETAIL PANEL ──────────────────────────────────────────────────────────────
+function showDetail(event, eventId) {
+  selectedEventId = eventId;
+
+  // Highlight selected
+  document.querySelectorAll('.event-item').forEach(el => {
+    el.style.background = el.dataset.eventId === eventId
+      ? 'rgba(0,229,200,0.05)'
+      : '';
+  });
+
+  const det = event.detection || {};
+  const tri = event.triage || {};
+  const rem = event.remediation || {};
+  const actions = rem.actions || [];
+
+  const detColor = p => ({CRITICAL:'pink',HIGH:'amber',MEDIUM:'teal',LOW:'teal'}[p] || '');
+
+  let html = `
+    <div class="detail-content">
+      <div class="detail-section">
+        <div class="detail-section-title">Detection</div>
+        <div class="detail-row">
+          <span class="detail-key">event_id</span>
+          <span class="detail-val" style="font-size:8px">${escHtml(det.event_id||'')}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-key">source</span>
+          <span class="detail-val">${escHtml(det.source||'')}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-key">z_score</span>
+          <span class="detail-val teal">${parseFloat(det.z_outlier||0).toFixed(4)}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-key">entropy</span>
+          <span class="detail-val">${parseFloat(det.entropy||0).toFixed(4)}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-key">drop_ratio</span>
+          <span class="detail-val">${parseFloat(det.drop_ratio||0).toFixed(3)}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-key">severity</span>
+          <span class="detail-val ${detColor(det.severity)}">${det.severity||''}</span>
+        </div>
+        ${det.mitre_ttp ? `
+        <div class="detail-row">
+          <span class="detail-key">mitre</span>
+          <span class="detail-val" style="font-size:9px">${escHtml(det.mitre_ttp)}</span>
+        </div>` : ''}
+      </div>
+
+      <div class="detail-section">
+        <div class="detail-section-title">Triage</div>
+        <div class="detail-row">
+          <span class="detail-key">priority</span>
+          <span class="detail-val ${detColor(tri.priority)}">${tri.priority||''}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-key">category</span>
+          <span class="detail-val">${(tri.category||'').replace(/_/g,' ')}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-key">confidence</span>
+          <span class="detail-val">${((tri.confidence||0)*100).toFixed(1)}%</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-key">escalate</span>
+          <span class="detail-val ${tri.escalate?'pink':'teal'}">${tri.escalate?'YES':'NO'}</span>
+        </div>
+      </div>
+
+      ${actions.length > 0 ? `
+      <div class="detail-section">
+        <div class="detail-section-title">Remediation Actions (${actions.length})</div>
+        ${actions.map(a => `
+          <div class="action-item">
+            <div class="action-status-dot ${a.status}"></div>
+            <div class="action-body">
+              <div class="action-title">${escHtml(a.title)}</div>
+              <div class="action-desc">${escHtml(a.description)}</div>
+              ${a.command ? `<div class="action-cmd">${escHtml(a.command)}</div>` : ''}
+            </div>
+          </div>
+        `).join('')}
+      </div>` : ''}
+
+      <div class="detail-section">
+        <div class="detail-section-title">Remediation</div>
+        <div class="detail-row">
+          <span class="detail-key">effort</span>
+          <span class="detail-val" style="font-size:9px">${escHtml(rem.estimated_effort||'')}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-key">human needed</span>
+          <span class="detail-val ${rem.requires_human?'pink':'teal'}">${rem.requires_human?'YES':'NO'}</span>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('detailPanel').innerHTML = html;
+}
+
+// ── AUDIT LOG ─────────────────────────────────────────────────────────────────
+function addAuditEntry(entry, priority) {
+  const log = document.getElementById('auditLog');
+  const el = document.createElement('div');
+  el.className = 'audit-entry';
+
+  const isCritical = priority === 'CRITICAL' || priority === 'HIGH';
+  const highlighted = entry
+    .replace(/\| (ID|Source|Category|Priority|Severity|Z-Score|Entropy|MITRE|Action|Engine):/g,
+      (m, k) => `| <span class="highlight">${k}:</span>`)
+    .replace(/CRITICAL|BLOCKED|ISOLATE/g, m => `<span class="warn">${m}</span>`);
+
+  el.innerHTML = highlighted;
+  log.insertBefore(el, log.firstChild);
+
+  const entries = log.querySelectorAll('.audit-entry');
+  if (entries.length > 100) entries[entries.length - 1].remove();
+
+  document.getElementById('auditCount').textContent =
+    `${entries.length} entr${entries.length !== 1 ? 'ies' : 'y'}`;
+}
+
+// ── STATS UPDATE ──────────────────────────────────────────────────────────────
+function updateStats() {
+  document.getElementById('statTotal').textContent = stats.total;
+  document.getElementById('statDetections').textContent = stats.detections;
+  document.getElementById('statCritical').textContent = stats.critical;
+  document.getElementById('statAuto').textContent = stats.auto;
+}
+
+// ── DEMO TRIGGER ──────────────────────────────────────────────────────────────
+const SCENARIOS = ['c2_quieting', 'lotl_gradual', 'gnss_jam', 'normal_with_fade', 'mixed'];
+let demoIndex = 0;
+
+async function runDemo() {
+  const btn = document.getElementById('demoBtn');
+  btn.textContent = '⟳ RUNNING...';
+  btn.classList.add('loading');
+
+  try {
+    const scenario = SCENARIOS[demoIndex % SCENARIOS.length];
+    demoIndex++;
+
+    const res = await fetch(`${API_BASE}/detect/scenario`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ scenario })
+    });
+
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const event = await res.json();
+
+    ingestEvent(event);
+    updateStats();
+
+    btn.textContent = '✓ DONE';
+    setTimeout(() => {
+      btn.textContent = '▶ RUN DEMO';
+      btn.classList.remove('loading');
+    }, 1500);
+
+  } catch (err) {
+    btn.textContent = '✗ ERROR';
+    btn.classList.remove('loading');
+    setTimeout(() => {
+      btn.textContent = '▶ RUN DEMO';
+    }, 2000);
+    console.error('Demo error:', err);
+  }
+}
+
+// ── UTILS ─────────────────────────────────────────────────────────────────────
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+// ── BOOT ──────────────────────────────────────────────────────────────────────
+pollEvents();
+setInterval(pollEvents, POLL_INTERVAL);
+
+console.log('%cFUSIONOPS THREAT CONSOLE', 'color:#00e5c8;font-size:18px;font-weight:bold;font-family:monospace');
+console.log('%cv0.3.0 · Tinlance Limited · github.com/Tinlance/fusionops', 'color:#4a6278;font-family:monospace');
+</script>
+</body>
+</html>
