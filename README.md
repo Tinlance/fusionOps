@@ -4,13 +4,13 @@
 [![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688.svg)](https://fastapi.tiangolo.com)
 [![Powered by ThreatFade](https://img.shields.io/badge/Powered%20by-ThreatFade-00E5C8)](https://github.com/LloydCoder/tinlance-threatfade)
-[![Live on AWS](https://img.shields.io/badge/Live-AWS%20Production-FF4D6D)](http://fusionops.tinlance.com)
+[![Live on AWS](https://img.shields.io/badge/Live-AWS%20Production-FF4D6D)](https://fusionops.tinlance.com)
 [![Made by Tinlance](https://img.shields.io/badge/Made%20by-Tinlance%20Limited-FF4D6D)](https://tinlance.com)
 
 > **Detect C2 evasion. Triage automatically. Remediate instantly.**  
 > Validated on real Merlin QUIC C2 malware — z-score 14.76, 490K packets, 0% false positives.
 
-**[▶ Live Dashboard](http://fusionops.tinlance.com/dashboard)** · **[API Docs](http://fusionops.tinlance.com/docs)** · **[Full API Reference](docs/API.md)** · **[Contributing](CONTRIBUTING.md)**
+**[▶ Live Dashboard](https://fusionops.tinlance.com/dashboard)** · **[API Docs](https://fusionops.tinlance.com/docs)** · **[Full API Reference](docs/API.md)** · **[Contributing](CONTRIBUTING.md)**
 
 ---
 
@@ -36,12 +36,12 @@ FullAnalysisResult in <100ms
 
 ## Live Demo
 
-**Dashboard:** http://fusionops.tinlance.com/dashboard  
-**API:** http://fusionops.tinlance.com/docs
+**Dashboard:** https://fusionops.tinlance.com/dashboard  
+**API:** https://fusionops.tinlance.com/docs
 
 ```bash
 # Try it right now — no setup needed
-curl -X POST http://fusionops.tinlance.com/detect/scenario \
+curl -X POST https://fusionops.tinlance.com/detect/scenario \
   -H "Content-Type: application/json" \
   -d '{"scenario": "c2_quieting"}'
 ```
@@ -223,7 +223,7 @@ Tinlance has merged PRs into the top security OSS tools:
 Building AI and cybersecurity products for the frontier.
 
 - 🌐 [tinlance.com](https://tinlance.com)
-- 🚀 [fusionops.tinlance.com](http://fusionops.tinlance.com)
+- 🚀 [fusionops.tinlance.com](https://fusionops.tinlance.com)
 - 🐙 [github.com/Tinlance](https://github.com/Tinlance)
 - 🐦 [@lloydcoder](https://x.com/lloydcoder)
 - 📧 [hello@tinlance.com](mailto:hello@tinlance.com)
