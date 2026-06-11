@@ -1,0 +1,125 @@
+name: FusionOps CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    name: Install and test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Check imports
+        run: |
+          python -c "from agents.triage_agent import run_triage; print('Triage agent OK')"
+          python -c "from agents.remediation_agent import run_remediation; print('Remediation agent OK')"
+          python -c "from config.settings import settings; print('Config OK')"
+
+      - name: Run triage agent tests
+        run: |
+          python -c "
+          from agents.triage_agent import run_triage
+
+          # Test CRITICAL detection
+          result = run_triage({
+              'event_id': 'test-001',
+              'detected': True,
+              'score': 0.92,
+              'entropy': 7.8,
+              'drop_ratio': 0.45,
+              'z_outlier': 14.76,
+              'mitre_ttp': 'T1027',
+              'severity': 'CRITICAL'
+          })
+          assert result['priority'] == 'CRITICAL', f'Expected CRITICAL, got {result["priority"]}'
+          assert result['escalate'] == True
+          print('CRITICAL detection test: PASSED')
+
+          # Test LOW detection
+          result = run_triage({
+              'event_id': 'test-002',
+              'detected': True,
+              'score': 0.38,
+              'entropy': 2.9,
+              'drop_ratio': 0.71,
+              'z_outlier': 1.89,
+              'mitre_ttp': 'T1205',
+              'severity': 'LOW'
+          })
+          assert result['priority'] == 'LOW'
+          assert result['auto_remediate'] == True
+          print('LOW detection test: PASSED')
+
+          # Test non-detection
+          result = run_triage({
+              'event_id': 'test-003',
+              'detected': False,
+              'score': 0.1,
+              'entropy': 4.0,
+              'drop_ratio': 0.0,
+              'z_outlier': 0.5,
+              'severity': 'LOW'
+          })
+          assert result['priority'] == 'INFO'
+          print('Non-detection test: PASSED')
+
+          print('All triage agent tests passed.')
+          "
+
+      - name: Run remediation agent tests
+        run: |
+          python -c "
+          from agents.triage_agent import run_triage
+          from agents.remediation_agent import run_remediation
+
+          detection = {
+              'event_id': 'test-rem-001',
+              'detected': True,
+              'score': 0.92,
+              'entropy': 7.8,
+              'drop_ratio': 0.45,
+              'z_outlier': 14.76,
+              'mitre_ttp': 'T1027',
+              'severity': 'CRITICAL',
+              'source': 'test'
+          }
+          triage = run_triage(detection)
+          plan = run_remediation(triage, detection)
+
+          assert plan['event_id'] == 'test-rem-001'
+          assert plan['priority'] == 'CRITICAL'
+          assert plan['requires_human'] == True
+          assert len(plan['actions']) > 0
+          assert plan['audit_entry'] is not None
+          assert 'FUSIONOPS REMEDIATION EVENT' in plan['audit_entry']
+          print('Remediation agent tests: PASSED')
+          "
+
+      - name: Verify API can be imported
+        run: |
+          python -c "
+          import sys
+          sys.path.insert(0, '.')
+          # Just check imports work without starting the server
+          from api.fusionops_api import app
+          print(f'FastAPI app loaded: {len(app.routes)} routes registered')
+          assert len(app.routes) > 5, 'Expected at least 6 routes'
+          print('API import test: PASSED')
+          "

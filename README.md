@@ -2,67 +2,73 @@
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-teal.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://python.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688.svg)](https://fastapi.tiangolo.com)
 [![Powered by ThreatFade](https://img.shields.io/badge/Powered%20by-ThreatFade-00E5C8)](https://github.com/LloydCoder/tinlance-threatfade)
+[![Live on AWS](https://img.shields.io/badge/Live-AWS%20Production-FF4D6D)](http://fusionops.tinlance.com)
 [![Made by Tinlance](https://img.shields.io/badge/Made%20by-Tinlance%20Limited-FF4D6D)](https://tinlance.com)
 
-> **One brain for threat detection and autonomous response.**  
-> FusionOps correlates C2 threats with IT anomalies and closes the loop — automatically.
+> **Detect C2 evasion. Triage automatically. Remediate instantly.**  
+> Validated on real Merlin QUIC C2 malware — z-score 14.76, 490K packets, 0% false positives.
+
+**[▶ Live Dashboard](http://fusionops.tinlance.com/dashboard)** · **[API Docs](http://fusionops.tinlance.com/docs)** · **[Full API Reference](docs/API.md)** · **[Contributing](CONTRIBUTING.md)**
 
 ---
 
-## What Is FusionOps?
+## What FusionOps Does
 
-FusionOps is an agentic SecOps + AIOps platform built on top of the [ThreatFade](https://github.com/LloydCoder/tinlance-threatfade) C2 detection engine.
-
-Where ThreatFade **detects**, FusionOps **acts**.
+FusionOps is an open-core agentic SecOps platform. One API call runs your traffic through three autonomous agents and returns a complete detection, triage, and remediation result.
 
 ```
-Network traffic → ThreatFade detects C2 evasion → FusionOps triage agent classifies
-→ Remediation agent suggests/executes fix → Dashboard logs audit trail
+Input (PCAP / JSON signals / scenario)
+        ↓
+[1] ThreatFade — entropy + z-score C2 detection
+        ↓
+[2] Triage Agent — priority, category, recommended action
+        ↓
+[3] Remediation Agent — ordered action plan + audit trail
+        ↓
+FullAnalysisResult in <100ms
 ```
 
-### Why FusionOps?
-
-- **Signature-based tools miss C2 evasion.** FusionOps uses entropy + z-score analysis validated against real Merlin QUIC C2 malware (z-score 14.76, 490K packets, 0% false positives).
-- **SecOps and ITOps are siloed.** FusionOps fuses them into one agentic loop.
-- **AI agents create new attack surfaces.** FusionOps monitors LLM and agentic AI channels — not just traditional network traffic.
+**Why this matters:** Signature-based tools miss C2 evasion because adversaries deliberately quiet their channels. FusionOps detects the *absence* of signal — the entropy drop itself — not just known malware patterns.
 
 ---
 
-## Architecture
+## Live Demo
 
-```
-┌─────────────────────────────────────────┐
-│           FusionOps (this repo)          │
-│                                         │
-│  ┌──────────┐    ┌───────────────────┐  │
-│  │  FastAPI  │───▶│   Triage Agent    │  │
-│  │   layer   │    │  (classify alert) │  │
-│  └──────────┘    └────────┬──────────┘  │
-│         ▲                  │             │
-│         │         ┌────────▼──────────┐  │
-│         │         │ Remediation Agent │  │
-│         │         │  (suggest / fix)  │  │
-│         │         └────────┬──────────┘  │
-│         │                  │             │
-│         │         ┌────────▼──────────┐  │
-│         │         │    Dashboard UI   │  │
-│         │         │  (live event log) │  │
-│         │         └───────────────────┘  │
-└─────────┼───────────────────────────────┘
-          │  HTTP calls /detect/ endpoints
-          ▼
-┌─────────────────────────────────────────┐
-│   ThreatFade (separate repo)            │
-│   github.com/LloydCoder/tinlance-       │
-│   threatfade                            │
-│                                         │
-│   Entropy + Z-score + Rules engine      │
-│   Validated: Merlin QUIC (z=14.76)      │
-└─────────────────────────────────────────┘
+**Dashboard:** http://fusionops.tinlance.com/dashboard  
+**API:** http://fusionops.tinlance.com/docs
+
+```bash
+# Try it right now — no setup needed
+curl -X POST http://fusionops.tinlance.com/detect/scenario \
+  -H "Content-Type: application/json" \
+  -d '{"scenario": "c2_quieting"}'
 ```
 
-FusionOps calls ThreatFade as an **external HTTP service** — no code is copied between repos. ThreatFade upgrades propagate to FusionOps automatically.
+---
+
+## Real Malware Validation Results
+
+### Merlin QUIC C2 (Real Capture)
+
+| Metric | Result |
+|---|---|
+| **PCAP Size** | 90.85 MB |
+| **Packets Analysed** | 490,565 |
+| **Active C2 Sessions** | 521 |
+| **Z-Score** | **14.76 (CRITICAL)** |
+| **Detected** | ✅ YES |
+| **MITRE TTP** | T1027 – Obfuscated Files/Information |
+| **False Positives** | 0% |
+
+### Additional Validation
+
+| Malware | Z-Score | Result |
+|---|---|---|
+| Merlin QUIC C2 | **14.76** | ✅ Detected |
+| Cobalt Strike | 7.01 | ✅ Detected |
+| IcedID | 3.89 | ✅ Detected |
 
 ---
 
@@ -71,8 +77,8 @@ FusionOps calls ThreatFade as an **external HTTP service** — no code is copied
 ### 1. Clone and install
 
 ```bash
-git clone https://github.com/Tinlance/fusionops.git
-cd fusionops
+git clone https://github.com/Tinlance/fusionOps.git
+cd fusionOps
 pip install -r requirements.txt
 ```
 
@@ -80,69 +86,120 @@ pip install -r requirements.txt
 
 ```bash
 cp .env.example .env
-# Edit .env — set your ThreatFade API URL
+# Edit .env — set THREATFADE_API_URL to your ThreatFade instance
 ```
 
-### 3. Start ThreatFade (in its own terminal)
+### 3. Start ThreatFade (separate terminal)
 
 ```bash
-# In your ThreatFade repo
+git clone https://github.com/LloydCoder/tinlance-threatfade.git
+cd tinlance-threatfade
+pip install fastapi "uvicorn[standard]" python-multipart pydantic scapy numpy scipy
 uvicorn fusionops_api:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 ### 4. Start FusionOps
 
 ```bash
+cd fusionOps
 uvicorn api.fusionops_api:app --host 0.0.0.0 --port 8080 --reload
 ```
 
-### 5. Open the API docs
+### 5. Open the dashboard
 
 ```
-http://localhost:8080/docs
+http://localhost:8080/dashboard
 ```
+
+Or Swagger UI at `http://localhost:8080/docs`
 
 ---
 
 ## Endpoints
 
 | Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/health` | Service liveness check |
-| `GET` | `/events` | Last N detection events |
-| `POST` | `/detect/json` | Analyse JSON signal data |
-| `POST` | `/detect/scenario` | Run named simulation scenario |
-| `POST` | `/detect/pcap` | Upload PCAP for analysis |
-| `POST` | `/triage` | Run triage agent on a detection result |
+|---|---|---|
+| `GET` | `/health` | Liveness check — confirms ThreatFade connection |
+| `GET` | `/events` | Rolling event log polled by dashboard every 5s |
+| `POST` | `/detect/json` | Analyse entropy time-series as JSON |
+| `POST` | `/detect/scenario` | Run a named simulation scenario |
+| `POST` | `/detect/pcap` | Upload PCAP/PCAPNG for real traffic analysis |
+| `POST` | `/triage` | Run triage agent on an existing detection result |
+| `GET` | `/dashboard` | Live SOC dashboard UI |
+| `GET` | `/` | Product landing page |
+
+📖 **[Full API Reference → docs/API.md](docs/API.md)**
+
+---
+
+## Repository Structure
+
+```
+fusionOps/
+├── api/
+│   └── fusionops_api.py        # FastAPI app — 6 endpoints + dashboard + landing
+├── agents/
+│   ├── triage_agent.py         # Classifies: priority, category, action
+│   └── remediation_agent.py    # Generates ordered plan + audit trail
+├── config/
+│   └── settings.py             # Pydantic settings — loads from .env
+├── dashboard/
+│   └── index.html              # Live SOC terminal — polls /events every 5s
+├── landing/
+│   └── index.html              # Product landing page
+├── docs/
+│   └── API.md                  # Full API reference with examples
+├── .github/
+│   ├── workflows/ci.yml        # CI — install, lint, test
+│   └── ISSUE_TEMPLATE/         # Bug report + feature request templates
+├── .env.example                # Environment variable template
+├── requirements.txt
+├── CONTRIBUTING.md             # How to contribute
+├── SECURITY.md                 # Security policy + vulnerability reporting
+├── CHANGELOG.md                # Version history
+└── README.md
+```
 
 ---
 
 ## Open-Core Model
 
-| Feature | Free (this repo) | Paid (Enterprise) |
-|---------|-----------------|-------------------|
+| Feature | Free (this repo) | Enterprise |
+|---|---|---|
 | C2 entropy + z-score detection | ✅ | ✅ |
-| Single alert triage agent | ✅ | ✅ |
-| PCAP upload analysis | ✅ | ✅ |
-| Multi-agent remediation loop | ❌ | ✅ |
-| Self-healing automation | ❌ | ✅ |
+| Triage agent (priority + category + action) | ✅ | ✅ |
+| Remediation plan generation | ✅ | ✅ |
+| PCAP upload + real traffic analysis | ✅ | ✅ |
+| REST API + Swagger docs | ✅ | ✅ |
+| LOG actions auto-executed | ✅ | ✅ |
+| NETWORK / PROCESS auto-execution | ❌ | ✅ |
 | SIEM / SOAR / Slack integrations | ❌ | ✅ |
-| LLM + agentic AI channel monitoring | ❌ | ✅ |
+| LLM + AI agent channel monitoring | ❌ | ✅ |
+| Persistent event storage (DynamoDB) | ❌ | ✅ |
 | Compliance dashboard (SOC 2 / GDPR) | ❌ | ✅ |
+| Customer-managed encryption keys | ❌ | ✅ |
+
+Enterprise inquiries: **hello@tinlance.com**
 
 ---
 
-## Validation
+## Roadmap
 
-FusionOps is powered by ThreatFade, validated against real malware:
-
-| Malware | Z-Score | Packets | Result |
-|---------|---------|---------|--------|
-| Merlin QUIC C2 | **14.76** | 490,565 | ✅ Detected |
-| Cobalt Strike | 7.01 | — | ✅ Detected |
-| IcedID | 3.89 | — | ✅ Detected |
-
-**False positive rate: 0%**
+- [x] ThreatFade C2 detection engine validated on real malware
+- [x] FastAPI REST API — 6 endpoints
+- [x] PCAP upload + real-time entropy analysis
+- [x] Triage agent — priority, category, recommended action
+- [x] Remediation agent — ordered plan + audit trail
+- [x] Live SOC dashboard — 5s polling, event detail, audit log
+- [x] AWS production deployment — permanent URL
+- [x] Product landing page
+- [x] Full API documentation
+- [ ] API key authentication (Enterprise)
+- [ ] SIEM integrations — Splunk, Elastic, CEF
+- [ ] Webhook notifications
+- [ ] LLM + agentic AI channel monitoring
+- [ ] Persistent event storage (DynamoDB)
+- [ ] GitHub Actions CI/CD pipeline
 
 ---
 
@@ -151,37 +208,25 @@ FusionOps is powered by ThreatFade, validated against real malware:
 Tinlance has merged PRs into the top security OSS tools:
 
 | Repo | Stars | Contribution |
-|------|-------|-------------|
+|---|---|---|
 | [Nuclei](https://github.com/projectdiscovery/nuclei) | 24K★ | Nigerian fintech credential detector |
 | [TruffleHog](https://github.com/trufflesecurity/trufflehog) | 15K★ | 5 Nigerian fintech detectors |
-| [Semgrep](https://github.com/returntocorp/semgrep) | 11K★ | Day-one merge — rule in global scans |
+| [Semgrep](https://github.com/returntocorp/semgrep) | 11K★ | Day-one merge — rule in global prod scans |
 | [Gitleaks](https://github.com/gitleaks/gitleaks) | 10K★ | Secret detection rules |
 | [Slither](https://github.com/crytic/slither) | 5K★ | Nigerian fintech credential detection |
-
----
-
-## Roadmap
-
-- [x] ThreatFade C2 detection engine (validated)
-- [x] FastAPI wrapper + REST endpoints
-- [x] PCAP upload + real-time analysis
-- [ ] Triage agent (in progress)
-- [ ] Remediation agent
-- [ ] Dashboard UI
-- [ ] AWS production deployment
-- [ ] SIEM integrations (Splunk, Elastic)
-- [ ] LLM/agentic AI channel monitoring
 
 ---
 
 ## Built By
 
 **Tinlance Limited** (RC: 7962164) — Nigeria 🇳🇬  
-Engineering AI and cybersecurity products for the frontier.
+Building AI and cybersecurity products for the frontier.
 
 - 🌐 [tinlance.com](https://tinlance.com)
+- 🚀 [fusionops.tinlance.com](http://fusionops.tinlance.com)
 - 🐙 [github.com/Tinlance](https://github.com/Tinlance)
 - 🐦 [@lloydcoder](https://x.com/lloydcoder)
+- 📧 [hello@tinlance.com](mailto:hello@tinlance.com)
 
 ---
 
@@ -189,4 +234,6 @@ Engineering AI and cybersecurity products for the frontier.
 
 Apache 2.0 — see [LICENSE](LICENSE)
 
-> The multi-agent remediation loop, self-healing automation, and enterprise integrations are proprietary and not included in this open-core release.
+> The multi-agent auto-execution, SIEM integrations, LLM channel monitoring,
+> persistent storage, and enterprise compliance features are proprietary and
+> not included in this open-core release.
